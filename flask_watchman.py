@@ -7,6 +7,8 @@ import datetime
 import subprocess
 
 from flask import current_app, Response
+from flask.ext.restful import Resource
+from flask.ext.discoverer import advertise
 
 
 class DateTimeEncoder(json.JSONEncoder):
@@ -26,19 +28,97 @@ class DateTimeEncoder(json.JSONEncoder):
         elif isinstance(obj, datetime.timedelta):
             encoded_object = obj.microseconds
         else:
-            encoded_object =json.JSONEncoder.default(self, obj)
+            encoded_object = json.JSONEncoder.default(self, obj)
         return encoded_object
+
+
+class Version(Resource):
+
+    def get(self):
+        return Version.app_version()
+
+    @staticmethod
+    def app_version():
+        """
+        Get the current version of the application running using the response
+        obtained from git. If the project is not version controlled by git, this
+        will not work correctly.
+        """
+        version = dict(commit=None, release=None)
+        git_params = {
+            'commit': 'git log --pretty=format:\'%H\' -n 1',
+            'release': 'git describe'
+        }
+
+        for key, cmd in git_params.iteritems():
+            process = subprocess.Popen(
+                cmd.split(' '),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            out, err = process.communicate()
+
+            version[key] = out
+
+        return Response(json.dumps(version), mimetype='application/json')
+
+
+class Environment(Resource):
+
+    def get(self):
+        return self.app_config()
+
+    def app_config(self):
+        """
+        Get the current OS and application configuration
+        """
+
+        environment = dict(os={}, app={})
+
+        for key in os.environ.keys():
+            environment['os'].setdefault(key, os.environ.get(key))
+
+        with current_app.app_context():
+
+            if hasattr(current_app, 'config'):
+                for key in current_app.config.keys():
+                    environment['app'].setdefault(key, current_app.config[key])
+
+        r = Response(
+            json.dumps(environment, cls=DateTimeEncoder),
+            mimetype='application/json'
+        )
+        return r
 
 
 class Watchman(object):
     """
     Watchman class
     """
-    def __init__(self, app=None):
+    def __init__(self, app=None, **kwargs):
         """
         Constructor
         :param app: flask app
         """
+
+        # Ensure that version is always added with no scopes, unless the user
+        # specifies
+        self.kwargs = kwargs
+        self.kwargs.setdefault('version', {})
+
+        self.allowed_endpoints = {
+            'version': {
+                'view': Version,
+                'route': '/version',
+                'methods': ['GET'],
+            },
+            'environment': {
+                'view': Environment,
+                'route': '/environment',
+                'methods': ['GET']
+            }
+        }
+
         self.app = app
         if app is not None:
             self.init_app(app)
@@ -58,61 +138,26 @@ class Watchman(object):
 
         app.extensions['watchman'] = self
 
-        with app.app_context():
-            current_app.add_url_rule(
-                '/version',
-                'version',
-                lambda: self.app_version()
-            )
-            current_app.add_url_rule(
-                '/environment',
-                'environment',
-                self.app_config
-            )
+        for view_name in self.allowed_endpoints.keys():
 
-    @staticmethod
-    def app_version():
-        """
-        Get the current version of the application running using the response
-        obtained from git. If the project is not version controlled by git, this
-        will not work correctly.
-        """
-        version = dict(commit=None, release=None)
-        git_params = {
-            'commit': 'git log --pretty=format:\'%H\' -n 1',
-            'release': 'git describe'
-        }
+            if view_name not in self.kwargs.keys():
+                continue
 
-        for key, cmd in git_params.iteritems():
-            process = subprocess.Popen(
-                [cmd],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            out, err = process.communicate()
+            view = self.allowed_endpoints[view_name]['view']
+            route = self.allowed_endpoints[view_name]['route']
+            methods = self.allowed_endpoints[view_name]['methods']
 
-            version[key] = out
+            # Does the user provide scopes?
+            if view_name in self.kwargs and self.kwargs[view_name].get('scopes'):
+                user_config = self.kwargs[view_name]
 
-        return Response(json.dumps(version), mimetype='application/json')
+                view.scopes = user_config.get('scopes', [''])
+                view.decorators = user_config.get('decorators', ([advertise('scopes', 'rate_limit')]))
+                view.rate_limit = [1000, 60*60*24]
 
-    def app_config(self):
-        """
-        Get the current OS and application configuration
-        """
-
-        environment = dict(os={}, app={})
-
-        for key in os.environ.keys():
-            environment['os'].setdefault(key, os.environ.get(key))
-
-        with self.app.app_context():
-
-            if hasattr(current_app, 'config'):
-                for key in current_app.config.keys():
-                    environment['app'].setdefault(key, current_app.config[key])
-
-        r = Response(
-            json.dumps(environment, cls=DateTimeEncoder),
-            mimetype='application/json'
-        )
-        return r
+            with app.app_context():
+                current_app.add_url_rule(
+                    route,
+                    view_func=view.as_view(view_name),
+                    methods=methods
+                )

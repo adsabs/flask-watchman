@@ -3,8 +3,7 @@ import unittest
 
 from flask import Flask
 from flask.ext.testing import TestCase
-from flask_watchman import Watchman
-
+from flask_watchman import Watchman, Environment
 
 class TestWatchman(TestCase):
     """
@@ -13,13 +12,13 @@ class TestWatchman(TestCase):
     def create_app(self):
         app = Flask(__name__, static_folder=None)
 
-        Watchman(app)
+        Watchman(app, environment={})
 
         app.config.setdefault('APP_LOGGING', 'MY LOGGING')
 
         return app
 
-    def test_watchman_routes_exists(self):
+    def test_watchman_routes_exist(self):
         """
         Test that the routes added exist
         """
@@ -78,6 +77,27 @@ class TestWatchman(TestCase):
             'MY LOGGING'
         )
 
+
+class TestWatchmanScopes(unittest.TestCase):
+
+    def test_adding_scopes_to_routes(self):
+
+        app = Flask(__name__, static_folder=None)
+
+        environment = {
+            'scopes': ['adsws:internal'],
+        }
+
+        with self.assertRaises(AttributeError):
+            getattr(Environment, 'scopes')
+            getattr(Environment, 'rate_limit')
+            getattr(Environment, 'decorators')
+
+        Watchman(app, environment=environment)
+
+        self.assertEqual(Environment.scopes, ['adsws:internal'])
+        self.assertIsInstance(Environment.decorators, list)
+        self.assertIsInstance(Environment.rate_limit, list)
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
