@@ -80,7 +80,20 @@ class TestWatchman(TestCase):
 
 class TestWatchmanScopes(unittest.TestCase):
 
+    def tearDown(self):
+        """
+        Hack to cleanup class attributes set in the tests
+        """
+        for key in ['scopes', 'decorators', 'rate_limit']:
+            try:
+                delattr(Environment, key)
+            except AttributeError:
+                pass
+
     def test_adding_scopes_to_routes(self):
+        """
+        Check the behaviour when scopes are specified
+        """
 
         app = Flask(__name__, static_folder=None)
 
@@ -98,6 +111,48 @@ class TestWatchmanScopes(unittest.TestCase):
         self.assertEqual(Environment.scopes, ['adsws:internal'])
         self.assertIsInstance(Environment.decorators, list)
         self.assertIsInstance(Environment.rate_limit, list)
+
+    def test_empty_scopes(self):
+        """
+        Check the behaviour when empty scopes are requested
+        """
+
+        app = Flask(__name__, static_folder=None)
+
+        environment = {
+            'scopes': [],
+        }
+
+        with self.assertRaises(AttributeError):
+            getattr(Environment, 'scopes')
+            getattr(Environment, 'rate_limit')
+            print getattr(Environment, 'decorators')
+
+        Watchman(app, environment=environment)
+
+        self.assertEqual(Environment.scopes, [])
+        self.assertIsInstance(Environment.decorators, list)
+        self.assertIsInstance(Environment.rate_limit, list)
+
+    def test_no_scopes(self):
+        """
+        Check the behaviour when no scopes are requested at all
+        """
+
+        app = Flask(__name__, static_folder=None)
+
+        with self.assertRaises(AttributeError):
+            getattr(Environment, 'scopes')
+            getattr(Environment, 'rate_limit')
+            getattr(Environment, 'decorators')
+
+        Watchman(app)
+
+	with self.assertRaises(AttributeError):
+            getattr(Environment, 'scopes')
+            getattr(Environment, 'decorators')
+            getattr(Environment, 'rate_limit')
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

@@ -148,10 +148,10 @@ class Watchman(object):
             methods = self.allowed_endpoints[view_name]['methods']
 
             # Does the user provide scopes?
-            if view_name in self.kwargs and self.kwargs[view_name].get('scopes'):
+            if view_name in self.kwargs and self.kwargs[view_name].get('scopes', None) != None:
                 user_config = self.kwargs[view_name]
 
-                view.scopes = user_config.get('scopes', [''])
+                view.scopes = user_config.get('scopes', [])
                 view.decorators = user_config.get('decorators', ([advertise('scopes', 'rate_limit')]))
                 view.rate_limit = [1000, 60*60*24]
 
