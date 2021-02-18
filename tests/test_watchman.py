@@ -2,7 +2,7 @@ import mock
 import unittest
 
 from flask import Flask
-from flask.ext.testing import TestCase
+from flask_testing import TestCase
 from flask_watchman import Watchman, Environment
 
 class TestWatchman(TestCase):
@@ -48,12 +48,12 @@ class TestWatchman(TestCase):
 
         self.assertEqual(
             r.json['commit'],
-            'latest-commit'
+            'latest-release'
         )
 
         self.assertEqual(
             r.json['release'],
-            'latest-release'
+            'latest-commit'
         )
 
     @mock.patch('flask_watchman.os.environ')
@@ -126,7 +126,7 @@ class TestWatchmanScopes(unittest.TestCase):
         with self.assertRaises(AttributeError):
             getattr(Environment, 'scopes')
             getattr(Environment, 'rate_limit')
-            print getattr(Environment, 'decorators')
+            print(getattr(Environment, 'decorators'))
 
         Watchman(app, environment=environment)
 
@@ -148,7 +148,7 @@ class TestWatchmanScopes(unittest.TestCase):
 
         Watchman(app)
 
-	with self.assertRaises(AttributeError):
+        with self.assertRaises(AttributeError):
             getattr(Environment, 'scopes')
             getattr(Environment, 'decorators')
             getattr(Environment, 'rate_limit')

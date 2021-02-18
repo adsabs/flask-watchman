@@ -7,8 +7,8 @@ import datetime
 import subprocess
 
 from flask import current_app, Response
-from flask.ext.restful import Resource
-from flask.ext.discoverer import advertise
+from flask_restful import Resource
+from flask_discoverer import advertise
 
 
 class DateTimeEncoder(json.JSONEncoder):
@@ -50,7 +50,7 @@ class Version(Resource):
             'release': 'git describe'
         }
 
-        for key, cmd in git_params.iteritems():
+        for key, cmd in git_params.items():
             process = subprocess.Popen(
                 cmd.split(' '),
                 stdout=subprocess.PIPE,
