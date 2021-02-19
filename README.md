@@ -46,3 +46,5 @@ A Vagrantfile and puppet manifest are available for development within a virtual
   * [VirtualBox](https://www.virtualbox.org)
 
 To load and enter the VM: `vagrant up && vagrant ssh`
+
+
