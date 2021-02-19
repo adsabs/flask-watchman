@@ -36,8 +36,8 @@ class TestWatchman(TestCase):
         """
         process = mock.Mock()
         process.communicate.side_effect = [
-            ['latest-release', 'error'],
-            ['latest-commit', 'error']
+            ['latest-commit', 'error'],
+            ['latest-release', 'error']
         ]
         mocked_subprocess.Popen.return_value = process
 
@@ -48,12 +48,12 @@ class TestWatchman(TestCase):
 
         self.assertEqual(
             r.json['commit'],
-            'latest-release'
+            'latest-commit'
         )
 
         self.assertEqual(
             r.json['release'],
-            'latest-commit'
+            'latest-release'
         )
 
     @mock.patch('flask_watchman.os.environ')
@@ -126,7 +126,7 @@ class TestWatchmanScopes(unittest.TestCase):
         with self.assertRaises(AttributeError):
             getattr(Environment, 'scopes')
             getattr(Environment, 'rate_limit')
-            print(getattr(Environment, 'decorators'))
+            getattr(Environment, 'decorators')
 
         Watchman(app, environment=environment)
 
